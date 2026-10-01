@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>계산기</title>
+<style>
+  :root {
+    --bg: #f2f3f5;
+    --panel: #ffffff;
+    --display-text: #1b1d21;
+    --display-sub: #7b8190;
+    --key: #eceef2;
+    --key-text: #1b1d21;
+    --key-hover: #e0e3e9;
+    --func: #d5d9e2;
+    --op: #4f6bff;
+    --op-text: #ffffff;
+    --op-hover: #3f58db;
+    --shadow: 0 10px 30px rgba(20, 24, 40, .12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --panel: #1e2126;
+      --display-text: #f1f3f7;
+      --display-sub: #8b92a1;
+      --key: #2a2e35;
+      --key-text: #f1f3f7;
+      --key-hover: #353a43;
+      --func: #3a3f49;
+      --op: #5b76ff;
+      --op-hover: #7189ff;
+      --shadow: 0 10px 30px rgba(0, 0, 0, .45);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: var(--bg);
+    font-family: "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+  }
+  .calc {
+    width: 100%;
+    max-width: 340px;
+    padding: 16px;
+    background: var(--panel);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+  }
+  .display {
+    min-height: 96px;
+    padding: 8px 8px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+  .expr {
+    min-height: 22px;
+    font-size: 15px;
+    color: var(--display-sub);
+  }
+  .result {
+    max-width: 100%;
+    font-size: 42px;
+    font-weight: 600;
+    color: var(--display-text);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .keys {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  button {
+    height: 64px;
+    border: 0;
+    border-radius: 16px;
+    font-size: 22px;
+    font-family: inherit;
+    background: var(--key);
+    color: var(--key-text);
+    cursor: pointer;
+    transition: background .12s, transform .06s;
+  }
+  button:hover { background: var(--key-hover); }
+  button:active { transform: scale(.96); }
+  button:focus-visible { outline: 2px solid var(--op); outline-offset: 2px; }
+  button.func { background: var(--func); }
+  button.op { background: var(--op); color: var(--op-text); }
+  button.op:hover { background: var(--op-hover); }
+  button.op.active { outline: 3px solid var(--display-sub); outline-offset: -3px; }
+  button.zero { grid-column: span 2; }
+</style>
+</head>
+<body>
+  <main class="calc" aria-label="계산기">
+    <div class="display" aria-live="polite">
+      <div class="expr" id="expr"></div>
+      <div class="result" id="result">0</div>
+    </div>
+    <div class="keys" id="keys">
+      <button class="func" data-action="clear">AC</button>
+      <button class="func" data-action="backspace" aria-label="지우기">⌫</button>
+      <button class="func" data-action="percent">%</button>
+      <button class="op" data-action="operator" data-value="/">÷</button>
+
+      <button data-action="digit" data-value="7">7</button>
+      <button data-action="digit" data-value="8">8</button>
+      <button data-action="digit" data-value="9">9</button>
+      <button class="op" data-action="operator" data-value="*">×</button>
+
+      <button data-action="digit" data-value="4">4</button>
+      <button data-action="digit" data-value="5">5</button>
+      <button data-action="digit" data-value="6">6</button>
+      <button class="op" data-action="operator" data-value="-">−</button>
+
+      <button data-action="digit" data-value="1">1</button>
+      <button data-action="digit" data-value="2">2</button>
+      <button data-action="digit" data-value="3">3</button>
+      <button class="op" data-action="operator" data-value="+">+</button>
+
+      <button class="zero" data-action="digit" data-value="0">0</button>
+      <button data-action="dot">.</button>
+      <button class="op" data-action="equals">=</button>
+    </div>
+  </main>
+
+<script>
+  const SYMBOL = { '+': '+', '-': '−', '*': '×', '/': '÷' };
+  const MAX_DIGITS = 15;
+
+  // 계산기 상태 (eval 없이 상태 기반으로 처리)
+  const state = {
+    current: '0',          // 화면에 입력 중인 문자열
+    previous: null,        // 직전 피연산자 (number)
+    operator: null,        // '+', '-', '*', '/'
+    waitingForOperand: false, // 연산자를 막 눌러서 새 숫자를 기다리는 중
+    justEvaluated: false,  // '=' 직후 (다음 숫자 입력 시 새 계산 시작)
+    error: false
+  };
+
+  const $result = document.getElementById('result');
+  const $expr = document.getElementById('expr');
+  const $keys = document.getElementById('keys');
+
+  /**
+   * a (op) b 를 계산해서 number 로 반환한다.
+   * 계산할 수 없는 경우(예: 0 으로 나누기)에는 NaN 을 반환하면 화면에 "오류"가 표시된다.
+   */
+  function calculate(a, op, b) {
+    // TODO(human): + - * / 네 가지 연산을 구현하세요.
+    //  - 0 으로 나누기를 어떻게 처리할지 (NaN 반환? Infinity?)
+    //  - 0.1 + 0.2 = 0.30000000000000004 같은 부동소수점 오차를 어떻게 보정할지
+    return NaN;
+  }
+
+  // ---- 표시용 포맷 ----
+  function groupInteger(str) {
+    const neg = str.startsWith('-');
+    const [int, frac] = (neg ? str.slice(1) : str).split('.');
+    const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return (neg ? '-' : '') + grouped + (frac !== undefined ? '.' + frac : '');
+  }
+
+  function numberToString(n) {
+    if (!Number.isFinite(n)) return null;
+    const abs = Math.abs(n);
+    if (abs !== 0 && (abs >= 1e15 || abs < 1e-9)) {
+      return n.toExponential(6).replace(/\.?0+e/, 'e');
+    }
+    return String(n);
+  }
+
+  function render() {
+    if (state.error) {
+      $result.textContent = '오류';
+      $expr.textContent = '';
+    } else {
+      $result.textContent = groupInteger(state.current);
+      $expr.textContent = state.operator
+        ? `${groupInteger(numberToString(state.previous))} ${SYMBOL[state.operator]}`
+        : '';
+    }
+    // 글자가 길어지면 폰트 크기를 줄여서 넘침 방지
+    const len = $result.textContent.length;
+    $result.style.fontSize = len > 14 ? '24px' : len > 10 ? '32px' : '42px';
+
+    document.querySelectorAll('button.op[data-action="operator"]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === state.operator && state.waitingForOperand);
+    });
+  }
+
+  // ---- 동작 ----
+  function reset() {
+    Object.assign(state, {
+      current: '0', previous: null, operator: null,
+      waitingForOperand: false, justEvaluated: false, error: false
+    });
+  }
+
+  function inputDigit(d) {
+    if (state.error) reset();
+    if (state.justEvaluated || state.waitingForOperand) {
+      state.current = d;
+      state.justEvaluated = false;
+      state.waitingForOperand = false;
+      return;
+    }
+    if (state.current.replace(/[-.]/g, '').length >= MAX_DIGITS) return;
+    state.current = state.current === '0' ? d : state.current + d;
+  }
+
+  function inputDot() {
+    if (state.error) reset();
+    if (state.justEvaluated || state.waitingForOperand) {
+      state.current = '0.';
+      state.justEvaluated = false;
+      state.waitingForOperand = false;
+      return;
+    }
+    if (!state.current.includes('.')) state.current += '.';
+  }
+
+  // 현재 pending 연산을 수행하고 결과를 state.current 에 반영. 실패 시 false.
+  function applyPending() {
+    const result = calculate(state.previous, state.operator, parseFloat(state.current));
+    const str = numberToString(result);
+    if (str === null) {
+      reset();
+      state.error = true;
+      return false;
+    }
+    state.current = str;
+    return true;
+  }
+
+  function chooseOperator(op) {
+    if (state.error) return;
+    if (state.operator && !state.waitingForOperand) {
+      if (!applyPending()) return;   // 연속 연산: 2 + 3 × → 먼저 5 계산
+    }
+    state.previous = parseFloat(state.current);
+    state.operator = op;
+    state.waitingForOperand = true;
+    state.justEvaluated = false;
+  }
+
+  function equals() {
+    if (state.error || !state.operator || state.waitingForOperand) return;
+    if (!applyPending()) return;
+    state.previous = null;
+    state.operator = null;
+    state.justEvaluated = true;
+  }
+
+  function percent() {
+    if (state.error) return;
+    const str = numberToString(parseFloat(state.current) / 100);
+    if (str !== null) state.current = str;
+  }
+
+  function backspace() {
+    if (state.error) return reset();
+    if (state.justEvaluated || state.waitingForOperand) return;
+    state.current = state.current.length > 1 && state.current !== '-0'
+      ? state.current.slice(0, -1) : '0';
+  }
+
+  function handle(action, value) {
+    switch (action) {
+      case 'digit': inputDigit(value); break;
+      case 'dot': inputDot(); break;
+      case 'operator': chooseOperator(value); break;
+      case 'equals': equals(); break;
+      case 'percent': percent(); break;
+      case 'backspace': backspace(); break;
+      case 'clear': reset(); break;
+    }
+    render();
+  }
+
+  // 버튼 클릭: 이벤트 위임
+  $keys.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (btn) handle(btn.dataset.action, btn.dataset.value);
+  });
+
+  // 키보드 입력
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key;
+    if (/^[0-9]$/.test(k)) handle('digit', k);
+    else if (k === '.' || k === ',') handle('dot');
+    else if ('+-*/'.includes(k)) handle('operator', k);
+    else if (k === 'Enter' || k === '=') { e.preventDefault(); handle('equals'); }
+    else if (k === 'Backspace') handle('backspace');
+    else if (k === 'Escape' || k === 'Delete') handle('clear');
+    else if (k === '%') handle('percent');
+  });
+
+  render();
+</script>
+</body>
+</html>

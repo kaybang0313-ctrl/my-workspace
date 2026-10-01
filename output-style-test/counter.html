@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>카운터 앱</title>
+  <!-- Tailwind CSS를 인터넷(CDN)에서 불러옵니다 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<!-- 화면 전체를 회색 배경으로 하고, 내용을 정중앙에 배치 -->
+<body class="min-h-screen bg-slate-100 flex items-center justify-center">
+
+  <!-- 카운터 카드 -->
+  <main class="bg-white rounded-2xl shadow-lg p-10 w-80 text-center">
+    <h1 class="text-xl font-bold text-slate-700 mb-6">카운터</h1>
+
+    <!-- 현재 카운트를 보여주는 숫자 (JavaScript가 이 안의 글자를 바꿉니다) -->
+    <p id="count" class="text-7xl font-bold text-blue-600 mb-8">0</p>
+
+    <!-- 버튼 영역 -->
+    <div class="flex gap-3 mb-3">
+      <!-- 감소 버튼 -->
+      <button id="decrease"
+        class="flex-1 bg-blue-400 hover:bg-blue-500 active:scale-95 text-white text-2xl font-bold py-3 rounded-lg transition">
+        -1
+      </button>
+      <!-- 증가 버튼 -->
+      <button id="increase"
+        class="flex-1 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-2xl font-bold py-3 rounded-lg transition">
+        +1
+      </button>
+    </div>
+
+    <!-- 리셋 버튼 -->
+    <button id="reset"
+      class="w-full bg-blue-100 hover:bg-blue-200 active:scale-95 text-blue-700 font-semibold py-2 rounded-lg transition">
+      리셋
+    </button>
+  </main>
+
+  <script>
+    // 현재 카운트를 저장하는 변수 (처음에는 0)
+    let count = 0;
+
+    // HTML에서 필요한 요소들을 id로 찾아 변수에 담아둡니다
+    const countEl = document.getElementById('count');
+    const increaseBtn = document.getElementById('increase');
+    const decreaseBtn = document.getElementById('decrease');
+    const resetBtn = document.getElementById('reset');
+
+    // 화면의 숫자를 현재 count 값으로 갱신하는 함수
+    function render() {
+      countEl.textContent = count;
+    }
+
+    // +1 버튼: count를 1 올리고 화면 갱신
+    increaseBtn.addEventListener('click', function () {
+      count = count + 1;
+      render();
+    });
+
+    // -1 버튼: count를 1 내리고 화면 갱신
+    decreaseBtn.addEventListener('click', function () {
+      count = count - 1;
+      render();
+    });
+
+    // 리셋 버튼: count를 0으로 되돌리고 화면 갱신
+    resetBtn.addEventListener('click', function () {
+      count = 0;
+      render();
+    });
+  </script>
+</body>
+</html>
