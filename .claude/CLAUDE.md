@@ -13,6 +13,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **문서화**: 한국어로 작성
 - **변수명/함수명**: 영어 (코드 표준 준수)
 
+## 코딩 스타일
+
+- 들여쓰기: 2칸
+- 선호 프레임워크: React, Next.js
+
+## 추가 선호사항
+
+- Tailwind CSS 사용
+- TypeScript 사용
+
 ## Directory layout note
 
 The actual project lives one level down, in `bucket-list-main/` (this nested folder name duplicates the repo root — likely an artifact of extracting a GitHub zip download). All source files, and the `README.md` with fuller documentation, are at:
