@@ -1,8 +1,0 @@
-- generic [active] [ref=e1]:
-  - generic [ref=e2]:
-    - paragraph [ref=e3]: "404"
-    - heading "페이지를 찾을 수 없습니다" [level=1] [ref=e4]
-    - paragraph [ref=e5]: 요청하신 페이지가 존재하지 않거나 이동되었습니다.
-    - button "홈으로 돌아가기" [ref=e6] [cursor=pointer]
-  - region "Notifications alt+T"
-  - button "Open Next.js Dev Tools" [ref=e12] [cursor=pointer]
